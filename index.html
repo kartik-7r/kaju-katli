@@ -314,9 +314,10 @@ h1,h2,h3{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:.2p
 <!-- LOADER -->
 <div id="loader">
   <div class="loader-heart">❤️</div>
-  <div class="loader-text">Loading</div>
-  <div class="loader-sub">Preparing something special...</div>
-  <div class="loader-bar"><div class="loader-bar-fill"></div></div>
+  <div class="loader-text" id="loader-status">Loading</div>
+  <div class="loader-sub" id="loader-caption">Preparing something special...</div>
+  <div class="loader-bar" id="loader-bar-wrap"><div class="loader-bar-fill"></div></div>
+  <button class="btn" id="tap-to-open" style="opacity:0;pointer-events:none;">Tap to open 💌</button>
 </div>
 
 <!-- PAGE 1 — LANDING -->
@@ -358,8 +359,6 @@ h1,h2,h3{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:.2p
   <div class="page-bg"><img src="img3.png" alt=""></div>
   <div class="page-bg-overlay"></div>
   <div class="eyebrow reveal">our story</div>
-  <br>
-  <br>
   <div class="story-line reveal" style="margin-top:14px;">Tumse milna.... Humare bich ki hr baate me kabhi nhi bhul sakta</div>
   <div class="story-line reveal">Tumhari hr smile ne mera din aur bhi accha bnaya hai ..</div>
   <div class="story-line reveal">Aur humare bich ka hr moment aisa bn chuka hai ki me bhula nhi sakta</div>
@@ -415,7 +414,6 @@ h1,h2,h3{font-family:'Playfair Display',serif;font-weight:600;letter-spacing:.2p
     <p class="proposal-text">4 din ki zindagi hai...</p>
     <p class="proposal-text">3 din nikal chuke hai...</p>
     <p class="proposal-text">Bacha 1 din... Wo din tumhare saath bitane hai...</p>
-    <p class="proposal-text">Kya tum firse meri girlfriend bnogi💕....</p>
     <div class="btn-row">
       <button class="btn btn-yes" id="yes-btn">YES ❤️</button>
       <button class="btn btn-no" id="no-btn">NO 🌸</button>
@@ -518,12 +516,27 @@ document.getElementById('to-proposal').addEventListener('click',()=>goToPage('pa
 /* ================= loader ================= */
 window.addEventListener('load',()=>{
   setTimeout(()=>{
-    document.getElementById('loader').classList.add('hide');
-    document.getElementById('page-landing').classList.add('active');
-    document.querySelectorAll('.pdot')[0].classList.add('active');
-    startTypewriter();
+    /* loading animation finished — now show a gentle "tap to open" prompt.
+       this single tap is required by every browser before sound can play,
+       so we fold it into the loading moment itself instead of a separate step. */
+    document.getElementById('loader-status').textContent = 'Ready';
+    document.getElementById('loader-caption').textContent = 'For Kaju Katli ❤️';
+    document.getElementById('loader-bar-wrap').style.display = 'none';
+    const tapBtn = document.getElementById('tap-to-open');
+    tapBtn.style.transition = 'opacity .8s ease, transform .8s ease';
+    tapBtn.style.opacity = '1';
+    tapBtn.style.pointerEvents = 'auto';
+    tapBtn.addEventListener('click', openExperience, {once:true});
   },1900);
 });
+
+function openExperience(){
+  startSongOnce();
+  document.getElementById('loader').classList.add('hide');
+  document.getElementById('page-landing').classList.add('active');
+  document.querySelectorAll('.pdot')[0].classList.add('active');
+  startTypewriter();
+}
 
 /* ================= typewriter ================= */
 function startTypewriter(){
@@ -673,14 +686,13 @@ proposalVideo.play().catch(e=>console.warn('video.mp4 play() blocked/failed:', e
 
 /* ================= NO button logic ================= */
 const noMessages = [
-  {emoji:'🥺', text:"Thank you for reading everything. No matter your answer, I truly appreciate your honesty."},
-  {emoji:'❤️', text:"You will always have my respect."},
-  {emoji:'🌸', text:"I just wanted you to know how I feel."},
-  {emoji:'🐻', text:"Thank you for giving this a chance."},
-  {emoji:'💕', text:"Wishing you happiness always."}
+  {emoji:'🥺', text:"sach me🥺"},
+  {emoji:'🫂', text:"tum humesha mere dil me rhogi🫂"}
 ];
+let noClickCount = 0;
 document.getElementById('no-btn').addEventListener('click',()=>{
-  const pick = noMessages[Math.floor(Math.random()*noMessages.length)];
+  const pick = noMessages[Math.min(noClickCount, noMessages.length-1)];
+  noClickCount++;
   document.getElementById('modal-emoji').textContent = pick.emoji;
   document.getElementById('modal-text').textContent = pick.text;
   document.getElementById('no-modal').classList.add('show');
@@ -771,17 +783,19 @@ bgSong.addEventListener('canplay', ()=>console.log('song.mp3 loaded fine ✅'));
 bgSong.loop = false; /* plays the full song through once; set to true if you want it to repeat */
 bgSong.volume = 0.55;
 let songStarted = false;
-document.addEventListener('click', ()=>startSongOnce(), {once:true});
 function startSongOnce(){
   if(songStarted) return;
-  songStarted = true;
-  bgSong.play().catch(()=>{
-    /* if autoplay was blocked, it will start on the very next click anywhere */
-    const resume = ()=>{ bgSong.play().catch(()=>{}); document.removeEventListener('click',resume); };
-    document.addEventListener('click',resume);
-  });
-  document.getElementById('music-toggle').textContent = '🎵';
+  bgSong.play().then(()=>{
+    songStarted = true;
+    document.getElementById('music-toggle').textContent = '🎵';
+  }).catch(()=>{ /* still blocked, the listeners below keep retrying */ });
 }
+/* try immediately on load — works if the browser already trusts this site */
+startSongOnce();
+/* if that was blocked, catch the very first interaction of ANY kind (not just a click) */
+['click','keydown','touchstart','pointerdown','scroll'].forEach(evt=>{
+  document.addEventListener(evt, startSongOnce, {once:true, passive:true});
+});
 document.getElementById('music-toggle').addEventListener('click',function(){
   if(!songStarted){ startSongOnce(); return; }
   bgSong.muted = !bgSong.muted;
